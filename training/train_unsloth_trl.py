@@ -16,7 +16,7 @@ import torch
 # Load model using Unsloth
 # ---------------------------
 model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name="meta-llama/Llama-3-8B-Instruct",
+    model_name="mistralai/Mistral-7B-Instruct-v0.2"
     max_seq_length=2048,
     load_in_4bit=True,
 )
