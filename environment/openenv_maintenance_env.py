@@ -17,11 +17,11 @@ class MaintenancePlannerEnv(OpenEnv):
         self.day += 1
         reward = 0
 
-        if action == 0:  # Preventive Maintenance
+        if action == 0:
             self.asset_health += 5
             self.cost += 100
             reward += 3
-        elif action == 1:  # Delay
+        elif action == 1:
             self.asset_health -= random.randint(5, 15)
             reward -= 2
 
