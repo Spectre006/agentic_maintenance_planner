@@ -190,3 +190,62 @@ plt.savefig("kpi_dashboard.png")
 
 print("📊 KPI dashboard saved as kpi_dashboard.png")
 print("🏁 Agentic maintenance training complete.")
+
+# ==========================================================
+# 8. Evaluation Episode (NO LEARNING)
+# ==========================================================
+print("\n🧪 Starting evaluation episode (no learning)...\n")
+
+model.eval()  # 🔒 Freeze model (important)
+
+eval_env = MaintenancePlannerEnv()
+eval_obs, _ = eval_env.reset()
+
+eval_total_reward = 0
+eval_actions = []
+eval_asset_health = []
+eval_costs = []
+
+for step in range(20):
+    eval_prompt = (
+        f"Asset health is {eval_obs['asset_health'][0]}.\n"
+        f"Total maintenance cost so far is {eval_obs['cost'][0]}.\n\n"
+        "You are a maintenance planner.\n"
+        "Choose the best next action:\n"
+        "0 = Perform Preventive Maintenance\n"
+        "1 = Delay Maintenance\n"
+    )
+
+    # Model decides (NO gradient, NO update)
+    with torch.no_grad():
+        action = decide_action(model, tokenizer, eval_prompt)
+
+    eval_obs, reward, done, _, _ = eval_env.step(action)
+
+    eval_total_reward += reward
+    eval_actions.append(action)
+    eval_asset_health.append(eval_obs["asset_health"][0])
+    eval_costs.append(eval_obs["cost"][0])
+
+    action_text = "Preventive Maintenance" if action == 0 else "Delay Maintenance"
+
+    print(
+        f"[EVAL] Step {step + 1:02d} | "
+        f"Decision: {action_text} | "
+        f"Reward: {reward:+d} | "
+        f"Asset Health: {eval_obs['asset_health'][0]} | "
+        f"Cost: {eval_obs['cost'][0]}"
+    )
+
+print("\n✅ Evaluation completed.\n")
+
+# ----------------------------------------------------------
+# Evaluation Summary
+# ----------------------------------------------------------
+print("📊 Evaluation Summary")
+print("---------------------")
+print(f"Total evaluation reward : {eval_total_reward}")
+print(f"PM actions             : {eval_actions.count(0)}")
+print(f"Delay actions          : {eval_actions.count(1)}")
+print(f"Final asset health     : {eval_asset_health[-1]}")
+print(f"Final total cost       : {eval_costs[-1]}")
