@@ -19,7 +19,7 @@ from environment.openenv_maintenance_env import MaintenancePlannerEnv
 # ==========================================================
 # 1. Load model using Unsloth
 # ==========================================================
-print("\n🔹 Loading language model with Unsloth (GPU required)...")
+print("\n🔹 Loading language model with Unsloth...")
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name="mistralai/Mistral-7B-Instruct-v0.2",
