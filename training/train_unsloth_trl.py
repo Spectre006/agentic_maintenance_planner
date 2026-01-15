@@ -1,21 +1,25 @@
 # training/train_unsloth_trl.py
-# --------------------------------------------------
+# ==========================================================
 # Agentic Maintenance Planner
-# OpenEnv-style Gym environment + Unsloth RL training
-# --------------------------------------------------
+# Gym-style OpenEnv-compatible environment
+# Unsloth-based reward-driven agentic RL
+# KPI dashboard saved for analysis & blog
+# ==========================================================
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import torch
+import matplotlib
+matplotlib.use("Agg")  # ✅ Force non-interactive backend for Colab
 import matplotlib.pyplot as plt
 from unsloth import FastLanguageModel
 from environment.openenv_maintenance_env import MaintenancePlannerEnv
 
-# --------------------------------------------------
-# 1. Load model using Unsloth (GPU)
-# --------------------------------------------------
-print("\n🔹 Loading language model with Unsloth...")
+# ==========================================================
+# 1. Load model using Unsloth
+# ==========================================================
+print("\n🔹 Loading language model with Unsloth (GPU required)...")
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name="mistralai/Mistral-7B-Instruct-v0.2",
@@ -23,43 +27,43 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     load_in_4bit=True,
 )
 
-# 🔴 Important stability fixes
+# 🔴 REQUIRED stability fixes
 model.gradient_checkpointing_disable()
 model.config.use_cache = False
 
 model.train()
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
 
-print("✅ Model loaded successfully on GPU.\n")
+print("✅ Model loaded successfully.\n")
 
-# --------------------------------------------------
-# 2. Initialize Maintenance Environment
-# --------------------------------------------------
+# ==========================================================
+# 2. Initialize environment
+# ==========================================================
 print("🔹 Initializing simulated maintenance world...")
 
 env = MaintenancePlannerEnv()
 obs, _ = env.reset()
 
 print(
-    f"   ▶ Initial asset health: {obs['asset_health'][0]}\n"
-    f"   ▶ Initial maintenance cost: {obs['cost'][0]}\n"
+    f"   ▶ Initial asset health : {obs['asset_health'][0]}\n"
+    f"   ▶ Initial total cost   : {obs['cost'][0]}\n"
 )
 
-# --------------------------------------------------
-# 3. KPI Tracking (Business Metrics)
-# --------------------------------------------------
+# ==========================================================
+# 3. KPI tracking
+# ==========================================================
 rewards = []
 asset_healths = []
 costs = []
 actions = []
 
-# --------------------------------------------------
-# 4. Helper: Let the MODEL decide the action
-# --------------------------------------------------
+# ==========================================================
+# 4. Action decision helper (STRICT parsing)
+# ==========================================================
 def decide_action(model, tokenizer, prompt):
     """
-    The language model reads the situation
-    and decides whether to perform maintenance or delay.
+    Model decides next action.
+    We parse ONLY the last token to avoid bias.
     """
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
 
@@ -69,17 +73,20 @@ def decide_action(model, tokenizer, prompt):
         do_sample=False,
     )
 
-    response = tokenizer.decode(output[0], skip_special_tokens=True)
+    response = tokenizer.decode(output[0], skip_special_tokens=True).strip()
 
-    # Simple text-to-action mapping
-    if "0" in response:
+    # ✅ Strict parsing
+    if response.endswith("0"):
         return 0
-    return 1
+    if response.endswith("1"):
+        return 1
 
+    # Exploration fallback
+    return torch.randint(0, 2, (1,)).item()
 
-# --------------------------------------------------
-# 5. Training Loop (Agentic RL)
-# --------------------------------------------------
+# ==========================================================
+# 5. Agentic RL loop
+# ==========================================================
 print("🚀 Starting agentic reinforcement learning loop...\n")
 
 for step in range(30):
@@ -92,18 +99,18 @@ for step in range(30):
         "1 = Delay Maintenance\n"
     )
 
-    # Language model forward pass (for learning signal)
+    # Forward pass for learning signal
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     outputs = model(**inputs, labels=inputs["input_ids"])
     loss = outputs.loss
 
-    # Agent decides action
+    # Model decides
     action = decide_action(model, tokenizer, prompt)
 
-    # Environment responds
+    # Environment reacts
     obs, reward, done, _, _ = env.step(action)
 
-    # Reward-weighted policy update
+    # Reward-weighted update
     rl_loss = loss * (-reward)
 
     optimizer.zero_grad()
@@ -116,20 +123,18 @@ for step in range(30):
     costs.append(obs["cost"][0])
     actions.append(action)
 
-    # --------------------------------------------------
-    # Human-friendly logging
-    # --------------------------------------------------
+    # Human-readable logging
     action_text = "Preventive Maintenance" if action == 0 else "Delay Maintenance"
     outcome_text = (
-        "👍 Good decision (asset stabilized)"
+        "👍 Positive outcome (asset stabilized)"
         if reward > 0
-        else "⚠ Risky decision (asset degradation)"
+        else "⚠ Negative outcome (risk increased)"
     )
 
     print(
         f"Step {step + 1:02d} | "
         f"Decision: {action_text} | "
-        f"Reward: {reward} | "
+        f"Reward: {reward:+d} | "
         f"Asset Health: {obs['asset_health'][0]} | "
         f"Cost: {obs['cost'][0]} | "
         f"{outcome_text}"
@@ -137,24 +142,24 @@ for step in range(30):
 
 print("\n✅ Training completed.\n")
 
-# --------------------------------------------------
+# ==========================================================
 # 6. Save trained agent
-# --------------------------------------------------
-print("💾 Saving trained maintenance planner model...")
+# ==========================================================
+print("💾 Saving trained maintenance planner...")
 model.save_pretrained("trained_planner")
 tokenizer.save_pretrained("trained_planner")
-print("✅ Model saved successfully.\n")
+print("✅ Trained model saved.\n")
 
-# --------------------------------------------------
-# 7. KPI Dashboard (Visualization)
-# --------------------------------------------------
-print("📊 Generating KPI dashboard...\n")
+# ==========================================================
+# 7. KPI Dashboard (saved as image)
+# ==========================================================
+print("📊 Generating KPI dashboard...")
 
 plt.figure(figsize=(14, 8))
 
 plt.subplot(2, 2, 1)
-plt.plot(rewards, label="Reward per Step")
-plt.title("Learning Signal (Reward)")
+plt.plot(rewards)
+plt.title("Reward per Step (Learning Signal)")
 plt.xlabel("Step")
 plt.ylabel("Reward")
 plt.grid(True)
@@ -178,9 +183,10 @@ plt.bar(
     ["Preventive Maintenance", "Delay"],
     [actions.count(0), actions.count(1)],
 )
-plt.title("Planner Decision Distribution")
+plt.title("Decision Distribution")
 
 plt.tight_layout()
-plt.show()
+plt.savefig("kpi_dashboard.png")
 
-print("🏁 KPI dashboard displayed. Agentic maintenance training complete.")
+print("📊 KPI dashboard saved as kpi_dashboard.png")
+print("🏁 Agentic maintenance training complete.")
