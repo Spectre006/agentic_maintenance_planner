@@ -1,4 +1,4 @@
-# Agentic Maintenance Planner
+# Agentic Maintenance Planner with Reinforcement Learning (RL)
 
 Via OpenEnv we create execution environment for AI Agent Maintenance Planner leanr to takes decision on Single Asset to do PM or Delay using Reinforcement Learning.
 In case PM is selected, Asset health is maintained and AI Agent is given Reward as part of Reinforcement Learning.
