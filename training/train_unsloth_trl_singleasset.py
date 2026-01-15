@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import torch
 import matplotlib
-matplotlib.use("Agg")  # ✅ Force non-interactive backend for Colab
+matplotlib.use("Agg") 
 import matplotlib.pyplot as plt
 from unsloth import FastLanguageModel
 from environment.openenv_maintenance_env import MaintenancePlannerEnv
@@ -27,7 +27,6 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     load_in_4bit=True,
 )
 
-# 🔴 REQUIRED stability fixes
 model.gradient_checkpointing_disable()
 model.config.use_cache = False
 
