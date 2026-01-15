@@ -1,5 +1,5 @@
 
-# Agentic Maintenance Planner (Colab-first)
+# Agentic Maintenance Planner
 
 ## What this is
 A challenge-compliant Agentic RL environment inspired by Maximo maintenance planning.
