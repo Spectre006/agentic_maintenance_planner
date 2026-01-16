@@ -1,0 +1,12 @@
+name: Agentic Maintenance Planner
+description: |
+  An OpenEnv-compatible environment for training and evaluating
+  agentic maintenance planners. Demonstrates PPO-based learning
+  using TRL and Unsloth.
+category: simulation
+action_space: discrete
+observation_space: dict
+compatible_tooling:
+  - trl
+  - unsloth
+  - torch
