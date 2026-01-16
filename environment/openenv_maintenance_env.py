@@ -1,53 +1,81 @@
 import gymnasium as gym
 from gymnasium import spaces
-import random
+import numpy as np
 
 class MaintenancePlannerEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self):
+    def __init__(self, max_steps=30):
         super().__init__()
 
-        self.action_space = spaces.Discrete(2)  # 0=PM, 1=Delay
-        self.observation_space = spaces.Dict({
-            "day": spaces.Discrete(100),
-            "asset_health": spaces.Box(low=0, high=100, shape=(1,), dtype=int),
-            "cost": spaces.Box(low=0, high=10000, shape=(1,), dtype=int),
-        })
+        self.max_steps = max_steps
+        self.current_step = 0
 
-        self.max_steps = 50
+        # Example internal state
+        self.asset_health = 1.0
+        self.total_cost = 0.0
 
-    def reset(self, seed=None, options=None):
+        # Action: 0 = do nothing, 1 = preventive maintenance
+        self.action_space = spaces.Discrete(2)
+
+        # Observation: asset health
+        self.observation_space = spaces.Box(
+            low=0.0, high=1.0, shape=(1,), dtype=np.float32
+        )
+
+    # ----------------------------
+    # REQUIRED BY OPENENV
+    # ----------------------------
+    def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        self.day = 0
-        self.asset_health = 100
-        self.cost = 0
-        return self._obs(), {}
+
+        self.current_step = 0
+        self.asset_health = 1.0
+        self.total_cost = 0.0
+
+        observation = np.array([self.asset_health], dtype=np.float32)
+        info = {}
+
+        return observation, info
 
     def step(self, action):
-        self.day += 1
-        reward = 0
+        self.current_step += 1
 
-        if action == 0:  # Preventive Maintenance
-            self.asset_health += 5
-            self.cost += 100
-            reward += 3
-        else:  # Delay
-            self.asset_health -= random.randint(5, 15)
-            reward -= 2
+        reward = 0.0
 
-        if self.asset_health <= 0:
-            reward -= 20
-            self.asset_health = 50
+        if action == 1:
+            # Preventive maintenance
+            self.asset_health = 1.0
+            self.total_cost += 10
+            reward -= 10
+        else:
+            # Natural degradation
+            self.asset_health -= 0.05
+            reward += 1
 
-        terminated = self.day >= self.max_steps
-        truncated = False
+        terminated = self.asset_health <= 0
+        truncated = self.current_step >= self.max_steps
 
-        return self._obs(), reward, terminated, truncated, {}
+        observation = np.array([self.asset_health], dtype=np.float32)
 
-    def _obs(self):
+        info = {
+            "cost": self.total_cost
+        }
+
+        return observation, reward, terminated, truncated, info
+
+    # ----------------------------
+    # 🔴 MISSING METHOD – NOW FIXED
+    # ----------------------------
+    def state(self):
+        """
+        OpenEnv-required method.
+        Returns environment metadata (NOT the observation).
+        """
         return {
-            "day": self.day,
-            "asset_health": [self.asset_health],
-            "cost": [self.cost],
+            "step": self.current_step,
+            "asset_health": self.asset_health,
+            "total_cost": self.total_cost,
+            "max_steps": self.max_steps,
+            "done": self.asset_health <= 0 or self.current_step >= self.max_steps
         }
